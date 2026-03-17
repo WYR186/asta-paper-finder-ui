@@ -37,6 +37,7 @@ ai2i-config = { workspace = true }
 ai2i-dcollection = { workspace = true }
 ai2i-di = { workspace = true }
 semanticscholar = { git = "https://github.com/allenai/s2-api-client.git" }
+microsoft-python-type-stubs = { git = "https://github.com/microsoft/python-type-stubs.git" }
 mabwiser = { git = "https://github.com/allenai/mabwiser.git" }
 
 [tool.uv.workspace]

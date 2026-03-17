@@ -8,8 +8,8 @@ from ai2i.config.config_models import ConfigValuePlaceholder
 
 @dataclass(frozen=True)
 class LlmSuggestionAgent:
-    llm_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["llm_suggestion_agent", "llm_model_name"]
+    llm_model_name: ConfigValuePlaceholder[Literal["google:gemini3flash-medium-reasoning-default"]] = (
+        ConfigValuePlaceholder(["llm_suggestion_agent", "llm_model_name"])
     )
     openai_concurrency: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
         ["llm_suggestion_agent", "openai_concurrency"]
@@ -21,8 +21,8 @@ class LlmSuggestionAgent:
 
 @dataclass(frozen=True)
 class SearchByAuthorAgent:
-    llm_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["search_by_author_agent", "llm_model_name"]
+    llm_model_name: ConfigValuePlaceholder[Literal["openai:gpt5mini-medium-reasoning-default"]] = (
+        ConfigValuePlaceholder(["search_by_author_agent", "llm_model_name"])
     )
     relevance_judgements_quota: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
         ["search_by_author_agent", "relevance_judgements_quota"]
@@ -49,8 +49,8 @@ class SpecificPaperByNameAgent:
 
 @dataclass(frozen=True)
 class SpecificPaperByTitleAgent:
-    llm_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["specific_paper_by_title_agent", "llm_model_name"]
+    llm_model_name: ConfigValuePlaceholder[Literal["google:gemini3flash-medium-reasoning-default"]] = (
+        ConfigValuePlaceholder(["specific_paper_by_title_agent", "llm_model_name"])
     )
     should_sort: ConfigValuePlaceholder[bool] = ConfigValuePlaceholder(["specific_paper_by_title_agent", "should_sort"])
 
@@ -63,8 +63,8 @@ class BroadSearchByKeywordAgent:
     extra_results_factor: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
         ["broad_search_by_keyword_agent", "extra_results_factor"]
     )
-    formulation_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["broad_search_by_keyword_agent", "formulation_model_name"]
+    formulation_model_name: ConfigValuePlaceholder[Literal["openai:gpt5mini-medium-reasoning-default"]] = (
+        ConfigValuePlaceholder(["broad_search_by_keyword_agent", "formulation_model_name"])
     )
 
 
@@ -80,16 +80,16 @@ class MetadataPlannerAgent:
 
 @dataclass(frozen=True)
 class QueryAnalyzerAgent:
-    llm_abstraction_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["query_analyzer_agent", "llm_abstraction_model_name"]
+    llm_abstraction_model_name: ConfigValuePlaceholder[Literal["openai:gpt5mini-medium-reasoning-default"]] = (
+        ConfigValuePlaceholder(["query_analyzer_agent", "llm_abstraction_model_name"])
     )
     force_broad: ConfigValuePlaceholder[bool] = ConfigValuePlaceholder(["query_analyzer_agent", "force_broad"])
 
 
 @dataclass(frozen=True)
 class RelevanceJudgement:
-    relevance_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["relevance_judgement", "relevance_model_name"]
+    relevance_model_name: ConfigValuePlaceholder[Literal["openai:gpt5mini-minimal-reasoning-default"]] = (
+        ConfigValuePlaceholder(["relevance_judgement", "relevance_model_name"])
     )
     openai_concurrency: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
         ["relevance_judgement", "openai_concurrency"]
@@ -124,8 +124,8 @@ class BroadSearchAgent:
 
 @dataclass(frozen=True)
 class DenseAgent:
-    formulation_model_name: ConfigValuePlaceholder[Literal["google:gemini2flash-default"]] = ConfigValuePlaceholder(
-        ["dense_agent", "formulation_model_name"]
+    formulation_model_name: ConfigValuePlaceholder[Literal["openai:gpt5mini-medium-reasoning-default"]] = (
+        ConfigValuePlaceholder(["dense_agent", "formulation_model_name"])
     )
     initial_queries_to_formulate: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
         ["dense_agent", "initial_queries_to_formulate"]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from ai2i.chain import ModelName
+from ai2i.chain import ReasoningModelName
 from ai2i.dcollection import CorpusId, DenseDataset, DocumentCollection, ExtractedYearlyTimeRange
 from ai2i.di import DI
 from pydantic import BaseModel, Field
@@ -83,7 +83,7 @@ async def fetch_documents_from_dense_indices(
     venues: list[str] | None = None,
     authors: list[str] | None = None,
     initial_top_k_per_query: int = DI.config(cfg_schema.dense_agent.initial_top_k_per_query),
-    formulation_model_name: ModelName = DI.config(cfg_schema.dense_agent.formulation_model_name),
+    formulation_model_name: ReasoningModelName = DI.config(cfg_schema.dense_agent.formulation_model_name),
     reformulate_prompt_example_docs: int = DI.config(cfg_schema.dense_agent.reformulate_prompt_example_docs),
     reformulate_prompt_num_queries: int = DI.config(cfg_schema.dense_agent.reformulate_prompt_num_queries),
 ) -> DenseIterationResult:

@@ -1,7 +1,7 @@
 import logging
-from typing import Sequence
+from typing import Sequence, cast
 
-from ai2i.chain import LLMModel, ModelName, Timeouts, define_llm_endpoint
+from ai2i.chain import LLMModel, ModelName, ReasoningModelName, Timeouts, define_llm_endpoint
 from ai2i.dcollection import CorpusId, DocumentCollection, SampleMethod
 from ai2i.di import DI
 
@@ -23,7 +23,7 @@ DenseQuery = str
 async def get_reformulated_dense_queries(
     search_query: str,
     documents: DocumentCollection,
-    model_name: ModelName,
+    model_name: ModelName | ReasoningModelName,
     anchor_doc_collection: DocumentCollection = DI.requires(dc_deps.empty_doc_collection),
     max_docs_in_prompt: int = 10,
     doc_sampling_method: SampleMethod = "bottom_origin_rank_stratified_relevance",
@@ -35,12 +35,12 @@ async def get_reformulated_dense_queries(
     if use_search_query_as_one_of_the_queries:
         max_queries_to_generate -= 1
 
-    llm_model = LLMModel.from_name(model_name)
+    llm_model = LLMModel.from_name(cast(ModelName, model_name))
     endpoint = define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
         logger=logger,
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
     if len(documents) == 0 and len(anchor_doc_collection) == 0:

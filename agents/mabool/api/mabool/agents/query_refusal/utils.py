@@ -1,9 +1,10 @@
 import logging
-from typing import Literal, assert_never
+from typing import Literal, assert_never, cast
 
 from ai2i.chain import (
     ChainComputation,
     LLMModel,
+    ModelName,
     Timeouts,
     define_chat_llm_call,
     define_llm_endpoint,
@@ -98,15 +99,16 @@ async def clarify_query_refusal(
         return reply.answer
 
     async def convert_choice_to_valid_number(user_choice: str) -> bool | None:
-        llm_model = LLMModel.from_name(config_value(cfg_schema.query_analyzer_agent.llm_abstraction_model_name))
+        llm_model = LLMModel.from_name(
+            cast(ModelName, config_value(cfg_schema.query_analyzer_agent.llm_abstraction_model_name)), temperature=0
+        )
         return (
             await define_llm_endpoint(
                 default_timeout=Timeouts.short,
                 default_model=llm_model,
                 logger=logger,
-                api_key=get_api_key_for_model(llm_model),
+                api_key_mapper=get_api_key_for_model,
             )
-            .model_params(temperature=0)
             .execute(choice)
             .once(user_choice)
         )

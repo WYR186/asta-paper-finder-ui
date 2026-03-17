@@ -54,9 +54,9 @@ def extra_param2() -> str:
 def test_model_define() -> None:
     model_mock = MockModelRunnable()
     model_mock.return_value = MockResponse(value="result").model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
-    runnable = define_model().build_runnable(model_factory)
+    runnable = define_model(structured_response=True).build_runnable(model_factory)
     assert runnable == model_mock
 
 
@@ -69,7 +69,7 @@ async def test_simple_define_prompt_f_string(output_value: str, input_value: str
 
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r = await runnable.ainvoke({"input": input_value})
@@ -90,7 +90,7 @@ async def test_simple_define_prompt_mustache(output_value: str, input_value: str
 
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r = await runnable.ainvoke({"input": input_value})
@@ -108,7 +108,7 @@ async def test_custom_format_define_prompt_f_string(output_value: str, input_val
 
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r = await runnable.ainvoke({"input": input_value})
@@ -130,7 +130,7 @@ async def test_custom_format_define_prompt_mustache(output_value: str, input_val
 
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r = await runnable.ainvoke({"input": input_value})
@@ -155,7 +155,7 @@ async def test_define_prompt_with_extra_params(
 
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r = await runnable.ainvoke({"input": input_value})
@@ -174,7 +174,7 @@ async def test_define_prompt_with_response_metadata(output_value: str, input_val
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
     model_mock.return_metadata = {"mock_key": extra_param1}
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r, metadata = await runnable.ainvoke({"input": input_value})
@@ -197,7 +197,7 @@ async def test_define_chat_prompt(output_value: str, input_value: str, extra_par
 
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r = await runnable.ainvoke({"input": input_value})
@@ -222,7 +222,7 @@ async def test_define_chat_prompt_with_response_metadata(
     model_mock = MockModelRunnable()
     model_mock.return_value = SomeResponse(value=output_value).model_dump_json()
     model_mock.return_metadata = {"mock_key": extra_param1}
-    model_factory: ModelRunnableFactory = lambda: model_mock
+    model_factory: ModelRunnableFactory = lambda _: model_mock
 
     runnable = prompt_computation.build_runnable(model_factory)
     r, metadata = await runnable.ainvoke({"input": input_value})

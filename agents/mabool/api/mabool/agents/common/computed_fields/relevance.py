@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import logging
 from functools import partial
-from typing import Any, Sequence
+from typing import Any, Sequence, cast
 
 from ai2i.chain import (
     ChainComputation,
     LLMModel,
+    ModelName,
     ResponseMetadata,
     Timeouts,
     define_chat_llm_call,
@@ -184,12 +185,14 @@ def _extract_llm_response(
 async def _execute_llm_judgements(
     inputs: list[DocumentRelevanceInput], judge_relevance_chain: ChainComputation
 ) -> list[LLMJudgementResult | Exception]:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.relevance_judgement.relevance_model_name), temperature=0.0)
+    llm_model = LLMModel.from_name(
+        cast(ModelName, config_value(cfg_schema.relevance_judgement.relevance_model_name)), temperature=0.0
+    )
     endpoint = define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
         stop=stop_after_attempt(3),
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
     return await endpoint.execute(judge_relevance_chain).many(

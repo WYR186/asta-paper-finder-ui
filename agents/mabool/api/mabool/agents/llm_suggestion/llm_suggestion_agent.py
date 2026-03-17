@@ -52,7 +52,7 @@ def get_default_endpoint() -> LLMEndpoint:
         default_timeout=Timeouts.medium,
         default_model=llm_model,
         logger=logger,
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
 

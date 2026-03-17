@@ -11,9 +11,8 @@ from google.genai.types import (
     PartDict,
 )
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.messages.ai import UsageMetadata
+from langchain_core.language_models import BaseChatModel, LangSmithParams
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, UsageMetadata
 from langchain_core.outputs import ChatGeneration, ChatResult
 
 
@@ -30,12 +29,22 @@ class AsyncChatGoogleGenAI(BaseChatModel):
     def _identifying_params(self) -> dict[str, Any]:
         return {
             "_type": self._llm_type,
-            "model": "models/gemini-2.0-flash",
+            "model": f"models/{self.model_name}",
             "temperature": self.model_kwargs.get("temperature", 0),
             "top_k": self.model_kwargs.get("top_k"),
             "n": self.model_kwargs.get("candidate_count", 1),
             "safety_settings": self.model_kwargs.get("safety_settings"),
         }
+
+    def _get_ls_params(self, stop: list[str] | None = None, **kwargs: Any) -> LangSmithParams:
+        params = self._get_invocation_params(stop=stop, **kwargs)
+        ls_params = LangSmithParams(
+            ls_provider="google_genai",
+            ls_model_name=f"models/{self.model_name}",
+            ls_model_type="chat",
+            ls_temperature=params.get("temperature", self.model_kwargs.get("temperature", 0)),
+        )
+        return ls_params
 
     async def _agenerate(
         self,
@@ -71,11 +80,31 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         return ai_message, llm_output
 
     def _process_model_kwargs(self, kwargs: dict[str, Any], stop: list[str] | None = None) -> GenerateContentConfig:
+        # Merge instance kwargs with request kwargs
         merged_config = {**self.model_kwargs, **kwargs, **{"stop_sequences": stop}}
+
+        # Extract generation_config dict (standard parameters go here)
         generation_config_args = merged_config.pop("generation_config", {})
-        return GenerateContentConfig.model_validate(
-            {**merged_config, **generation_config_args, "automatic_function_calling": {"disable": True}},
-        )
+
+        # Extract thinking parameters (special handling for reasoning models)
+        thinking_budget = merged_config.pop("thinking_budget", None)
+        thinking_level = merged_config.pop("thinking_level", None)
+
+        # Build base config with all standard parameters
+        config_dict = {
+            **merged_config,
+            **generation_config_args,
+            "automatic_function_calling": {"disable": True},
+        }
+
+        # Add thinking parameters if present
+        # NOTE: API will error if both are provided (Gemini 3 restriction)
+        if thinking_budget is not None:
+            config_dict["thinking_config"] = {"thinking_budget": thinking_budget}
+        if thinking_level is not None:
+            config_dict["thinking_config"] = {"thinking_level": thinking_level}
+
+        return GenerateContentConfig.model_validate(config_dict)
 
     def _format_messages(
         self, messages: Sequence[BaseMessage]
@@ -99,12 +128,12 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         elif len(chat_messages) == 1:
             message = chat_messages[0]
             role = "user" if isinstance(message, HumanMessage) else "model"
-            contents = {"role": role, "parts": [PartDict(text=message.text())]}
+            contents = {"role": role, "parts": [PartDict(text=message.text)]}
         else:
-            contents = []
-            for message in chat_messages:
-                role = self._determine_role(message)
-                contents.append({"role": role, "parts": [PartDict(text=message.text())]})
+            contents = [
+                {"role": self._determine_role(message), "parts": [PartDict(text=message.text)]}
+                for message in chat_messages
+            ]
         return contents, system_instruction
 
     def _determine_role(self, message: BaseMessage) -> str:
@@ -162,6 +191,10 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         cached_token_count = usage_metadata_obj.cached_content_token_count
         if cached_token_count:
             usage_metadata["input_token_details"] = {"cache_read": cached_token_count}
+
+        thoughts_token_count = usage_metadata_obj.thoughts_token_count or 0
+        if thoughts_token_count:
+            usage_metadata["output_token_details"] = {"reasoning": thoughts_token_count}
 
         return usage_metadata
 

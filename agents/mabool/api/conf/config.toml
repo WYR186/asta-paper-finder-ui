@@ -36,7 +36,7 @@ concurrency = 10
 timeout = 60
 
 [default.dense_agent]
-formulation_model_name = "google:gemini2flash-default"
+formulation_model_name = "openai:gpt5mini-medium-reasoning-default"
 initial_queries_to_formulate = 5
 initial_top_k_per_query = 250
 reformulate_prompt_num_queries = 5
@@ -49,7 +49,7 @@ max_iterations = 3
 llm_n_suggestions = 5
 
 [default.relevance_judgement]
-relevance_model_name = "google:gemini2flash-default"
+relevance_model_name = "openai:gpt5mini-minimal-reasoning-default"
 openai_concurrency = 75
 quota = 250
 highly_relevant_cap = 50
@@ -63,7 +63,7 @@ optimal_solution = false
 keep_irrelevant_docs = false
 
 [default.query_analyzer_agent]
-llm_abstraction_model_name = "google:gemini2flash-default"
+llm_abstraction_model_name = "openai:gpt5mini-medium-reasoning-default"
 force_broad = false
 
 [default.metadata_planner_agent]
@@ -73,10 +73,10 @@ ops_max_concurrency = 50
 [default.broad_search_by_keyword_agent]
 results_limit = 50
 extra_results_factor = 4
-formulation_model_name = "google:gemini2flash-default"
+formulation_model_name = "openai:gpt5mini-medium-reasoning-default"
 
 [default.specific_paper_by_title_agent]
-llm_model_name = "google:gemini2flash-default"
+llm_model_name = "google:gemini3flash-medium-reasoning-default"
 should_sort = false
 
 [default.specific_paper_by_name_agent]
@@ -84,7 +84,7 @@ should_sort = false
 filter_threshold = 1.0
 
 [default.search_by_author_agent]
-llm_model_name = "google:gemini2flash-default"
+llm_model_name = "openai:gpt5mini-medium-reasoning-default"
 relevance_judgements_quota = 75
 limit_for_specific = 2
 limit_for_broad = 1000
@@ -92,6 +92,6 @@ disambiguate_authors = false
 consider_profiles_per_author = 20
 
 [default.llm_suggestion_agent]
-llm_model_name = "google:gemini2flash-default"
+llm_model_name = "google:gemini3flash-medium-reasoning-default"
 openai_concurrency = 75
 fallback_n_suggestions = 10

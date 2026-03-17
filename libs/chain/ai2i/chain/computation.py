@@ -48,8 +48,9 @@ N = TypeVar("N")
 
 Ts = TypeVarTuple("Ts")
 
-ModelRunnable = Runnable[PromptValue, BaseMessage]
-ModelRunnableFactory = Callable[[], ModelRunnable]
+type ModelRunnable = Runnable[PromptValue, BaseMessage]
+type IsStructured = bool
+type ModelRunnableFactory = Callable[[IsStructured], ModelRunnable]
 
 
 LangChainRunnableBuilder = Callable[[ModelRunnableFactory], Runnable[IN, OUT]]
@@ -354,7 +355,7 @@ class ChainComputation(Generic[IN, OUT]):
         def _internal_product(mf: ModelRunnableFactory) -> Runnable[IN2, Any]:
             ps_dict = {str(i): p for i, p in enumerate([p.build_runnable(mf) for p in ps])}
             return RunnableParallel(ps_dict) | RunnableLambda(_map_n_f_application).with_config(
-                {"run_name": "map_n: apply f"}
+                {"run_name": "map__n:_apply_f"}
             )
 
         return ChainComputation(_internal_product)

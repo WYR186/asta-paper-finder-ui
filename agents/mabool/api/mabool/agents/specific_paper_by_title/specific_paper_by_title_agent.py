@@ -1,6 +1,7 @@
 import logging
+from typing import cast
 
-from ai2i.chain import LLMEndpoint, LLMModel, Timeouts, define_llm_endpoint
+from ai2i.chain import LLMEndpoint, LLMModel, ModelName, Timeouts, define_llm_endpoint
 from ai2i.config import config_value
 from ai2i.dcollection import (
     AssignedField,
@@ -48,13 +49,13 @@ type SpecificPaperByTitleOutput = AgentOutput
 
 def get_default_endpoint() -> LLMEndpoint:
     llm_model = LLMModel.from_name(
-        config_value(cfg_schema.specific_paper_by_title_agent.llm_model_name), temperature=0.0
+        cast(ModelName, config_value(cfg_schema.specific_paper_by_title_agent.llm_model_name)), temperature=0.0
     )
     return define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
         logger=logger,
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
 

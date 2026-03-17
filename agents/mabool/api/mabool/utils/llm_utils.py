@@ -1,14 +1,14 @@
-from ai2i.chain import LLMModel
+from ai2i.chain import ModelFamily
 from ai2i.config import config_value
 from pydantic import SecretStr
 
 from mabool.data_model.config import cfg_schema
 
 
-def get_api_key_for_model(model: LLMModel) -> SecretStr | None:
+def get_api_key_for_model(model_family: ModelFamily) -> SecretStr | None:
     api_key: str | None = None
 
-    match model.family:
+    match model_family:
         case "openai":
             api_key = config_value(cfg_schema.openai_api_key, default=None)
         case "anthropic":

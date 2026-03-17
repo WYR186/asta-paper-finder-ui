@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
-from typing import Any, Coroutine
+from typing import Any, Coroutine, cast
 
-from ai2i.chain import LLMEndpoint, LLMModel, Timeouts, define_llm_endpoint
+from ai2i.chain import LLMEndpoint, LLMModel, ModelName, Timeouts, define_llm_endpoint
 from ai2i.config import config_value
 from ai2i.dcollection import (
     DocumentCollection,
@@ -85,12 +85,12 @@ no_next_suffix = " as this is the last batch of authors."
 
 
 def get_default_endpoint() -> LLMEndpoint:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.search_by_author_agent.llm_model_name))
+    llm_model = LLMModel.from_name(cast(ModelName, config_value(cfg_schema.search_by_author_agent.llm_model_name)))
     return define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
         logger=logger,
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
 

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
-from ai2i.chain import LLMEndpoint, LLMModel, Timeouts, define_llm_endpoint
-from ai2i.config import ConfigValue, config_value, configurable, ufv
+from ai2i.chain import LLMEndpoint, LLMModel, ModelName, Timeouts, define_llm_endpoint
+from ai2i.config import config_value, configurable, ufv
 from ai2i.dcollection import (
     RelevanceCriteria,
 )
@@ -46,12 +46,14 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_endpoint() -> LLMEndpoint:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.query_analyzer_agent.llm_abstraction_model_name))
+    llm_model = LLMModel.from_name(
+        cast(ModelName, config_value(cfg_schema.query_analyzer_agent.llm_abstraction_model_name)), temperature=0.0
+    )
     return define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
         logger=logger,
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
 
@@ -197,7 +199,7 @@ async def analyze(
         errors.append(NoActionableDataError(ufv(uf.response_texts.generic_refusal_message)))
     if query_type and query_type.type == "BROAD_BY_DESCRIPTION" and extracted_properties.specific_paper_name:
         try:
-            endpoint = endpoint.model_params(temperature=0.0).timeout(Timeouts.short)
+            endpoint = endpoint.timeout(Timeouts.short)
             suitable_for_by_citing = await endpoint.execute(suitable_for_citing).once(
                 {"query": user_input, "extracted_name": extracted_properties.specific_paper_name}
             )
@@ -248,16 +250,17 @@ async def analyze(
 @configurable
 async def extract_specifications(
     user_input: str,
-    specification_extraction_model_name: str = ConfigValue(cfg_schema.metadata_planner_agent.llm_model_name),
 ) -> Specifications:
     try:
-        spec_extract_llm_model = LLMModel.from_name(specification_extraction_model_name)
+        spec_extract_llm_model = LLMModel.from_name(
+            config_value(cfg_schema.metadata_planner_agent.llm_model_name), temperature=0.1
+        )
         spec_extract_endpoint = define_llm_endpoint(
             default_timeout=Timeouts.medium,
             default_model=spec_extract_llm_model,
             logger=logger,
-            api_key=get_api_key_for_model(spec_extract_llm_model),
-        ).model_params(temperature=0.1)
+            api_key_mapper=get_api_key_for_model,
+        )
         return await spec_extract_endpoint.execute(specification_extraction).once(user_input)
     except Exception as e:
         logger.exception(f"Failed to extract specifications: {user_input}. Continue with best effort. Error: {e}")
@@ -267,15 +270,8 @@ async def extract_specifications(
 @configurable
 async def decompose_and_analyze_query(
     user_input: str,
-    query_analysis_model_name: str = ConfigValue(cfg_schema.query_analyzer_agent.llm_abstraction_model_name),
 ) -> AnalyzeOutput:
-    analysis_llm_model = LLMModel.from_name(query_analysis_model_name)
-    analysis_endpoint = define_llm_endpoint(
-        default_timeout=Timeouts.medium,
-        default_model=analysis_llm_model,
-        logger=logger,
-        api_key=get_api_key_for_model(analysis_llm_model),
-    ).model_params(temperature=0.0)
+    analysis_endpoint = get_default_endpoint()
 
     tasks = (analysis_endpoint.execute(decompose_query).once(user_input), extract_specifications(user_input))
     extracted_fields, specifications = await asyncio.gather(*tasks)
@@ -290,9 +286,8 @@ async def decompose_and_analyze_query(
 @configurable
 async def decompose_and_analyze_query_restricted(
     user_input: str,
-    model_name: str = ConfigValue(cfg_schema.query_analyzer_agent.llm_abstraction_model_name),
 ) -> QueryAnalysisResult:
-    analyze_output = await decompose_and_analyze_query(user_input, model_name)
+    analyze_output = await decompose_and_analyze_query(user_input)
     analyzed_query = analyze_output.analyzed_query
     errors = analyze_output.errors
     match analyzed_query:

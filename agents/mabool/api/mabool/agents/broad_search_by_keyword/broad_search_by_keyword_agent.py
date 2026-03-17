@@ -1,6 +1,7 @@
 import logging
+from typing import cast
 
-from ai2i.chain import LLMModel, Timeouts, define_llm_endpoint
+from ai2i.chain import LLMModel, ModelName, Timeouts, define_llm_endpoint
 from ai2i.config import config_value
 from ai2i.dcollection import BASIC_FIELDS, DocumentCollectionSortDef, ExtractedYearlyTimeRange
 from ai2i.di import DI
@@ -39,11 +40,13 @@ logger = logging.getLogger(__name__)
 
 
 async def suggest_retrieval_query(paper_description: str) -> str:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.broad_search_by_keyword_agent.formulation_model_name))
+    llm_model = LLMModel.from_name(
+        cast(ModelName, config_value(cfg_schema.broad_search_by_keyword_agent.formulation_model_name))
+    )
     endpoint = define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
-        api_key=get_api_key_for_model(llm_model),
+        api_key_mapper=get_api_key_for_model,
     )
 
     return await endpoint.execute(broad_search).once(paper_description)

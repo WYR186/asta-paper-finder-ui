@@ -3,6 +3,7 @@ omit =
     # omit all tests
     **/tests/*
     **/libs/testing/*
+    **/.local/**
 
 [report]
 exclude_lines =
