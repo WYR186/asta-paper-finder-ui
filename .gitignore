@@ -90,3 +90,6 @@ server.log*
 
 # devbox files
 **/.devbox/**
+
+# Local search history database (runtime generated)
+search_history.db

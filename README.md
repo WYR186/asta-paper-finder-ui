@@ -1,5 +1,16 @@
 # Paper Finder
 
+> **Fork of [allenai/asta-paper-finder](https://github.com/allenai/asta-paper-finder)**
+> Based on https://github.com/allenai/asta-paper-finder
+> Added: session-based search history (SQLite), local web UI, deployment scripts.
+> See [LOCAL_DEPLOYMENT_NOTES.md](LOCAL_DEPLOYMENT_NOTES.md) for setup instructions.
+>
+> **Local modifications in this derivative work**
+> - `agents/mabool/api/mabool/api/app.py`
+> - `agents/mabool/api/mabool/api/history_routes.py`
+> - `agents/mabool/api/static/index.html`
+> - `agents/mabool/api/start.sh`
+
 This repo contains the code for the standalone Paper Finder agent (namely PaperFinder).
 
 This code is not actively maintained, and reflects a snapshot in time -- of the online/live PaperFinder agent -- which is easy to run locally. This is also the code that is used for evaluating PaperFinder and that can be used for reproducing the reported results.

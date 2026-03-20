@@ -162,9 +162,6 @@ class LlmAbstraction:
     gpt4_default_model: ConfigValuePlaceholder[Literal["gpt-4-0125-preview"]] = ConfigValuePlaceholder(
         ["llm_abstraction", "gpt4_default_model"]
     )
-    claude37sonnet_default_model: ConfigValuePlaceholder[Literal["claude-3-7-sonnet-20250219"]] = (
-        ConfigValuePlaceholder(["llm_abstraction", "claude37sonnet_default_model"])
-    )
     gemini2flash_default_model: ConfigValuePlaceholder[Literal["gemini-2.0-flash"]] = ConfigValuePlaceholder(
         ["llm_abstraction", "gemini2flash_default_model"]
     )
