@@ -18,6 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from mabool.api.history_routes import router as history_routes
 from mabool.api.round_v2_routes import router as rounds_v2_routes
+from mabool.api.stream_routes import router as stream_routes
 from mabool.data_model.config import cfg_schema
 from mabool.services.services_deps import services_module
 from mabool.utils.logging import initialize_logging
@@ -50,6 +51,7 @@ def create_app(di_patched_instances: dict[str, Any] | None = None, **config_over
 
     # API v2 routes
     app.include_router(rounds_v2_routes)
+    app.include_router(stream_routes)
     app.include_router(history_routes)
 
     # Static UI

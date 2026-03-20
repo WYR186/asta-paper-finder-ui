@@ -46,6 +46,23 @@ def _init_db(path: Path) -> None:
                 result_count  INTEGER,
                 result_json   TEXT
             );
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                corpus_id  TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                title      TEXT,
+                authors    TEXT,
+                year       INTEGER,
+                venue      TEXT,
+                url        TEXT,
+                abstract   TEXT,
+                tags       TEXT DEFAULT '[]',
+                note       TEXT DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS paper_notes (
+                corpus_id  TEXT PRIMARY KEY,
+                note       TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
         """)
         conn.commit()
 
@@ -187,3 +204,167 @@ def delete_search(session_id: int, search_id: int) -> None:
             "DELETE FROM searches WHERE id = ? AND session_id = ?",
             (search_id, session_id),
         )
+
+
+# ── Bookmark models ───────────────────────────────────────────────────────────
+
+class BookmarkCreate(BaseModel):
+    corpus_id: str
+    title: str | None = None
+    authors: list[str] | None = None
+    year: int | None = None
+    venue: str | None = None
+    url: str | None = None
+    abstract: str | None = None
+
+
+class BookmarkPatch(BaseModel):
+    tags: list[str] | None = None
+    note: str | None = None
+
+
+class NoteUpsert(BaseModel):
+    note: str
+
+
+# ── Bookmark routes ───────────────────────────────────────────────────────────
+
+@router.post("/api/bookmarks", status_code=201)
+def add_bookmark(req: BookmarkCreate) -> JSONResponse:
+    with _db() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO bookmarks
+               (corpus_id, title, authors, year, venue, url, abstract)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                req.corpus_id,
+                req.title,
+                json.dumps(req.authors) if req.authors is not None else None,
+                req.year,
+                req.venue,
+                req.url,
+                req.abstract,
+            ),
+        )
+    return JSONResponse({"ok": True}, status_code=201)
+
+
+@router.get("/api/bookmarks/ids")
+def list_bookmark_ids() -> JSONResponse:
+    with _db() as conn:
+        rows = conn.execute("SELECT corpus_id FROM bookmarks").fetchall()
+    return JSONResponse({"ids": [r["corpus_id"] for r in rows]})
+
+
+@router.get("/api/bookmarks")
+def list_bookmarks() -> JSONResponse:
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM bookmarks ORDER BY created_at DESC"
+        ).fetchall()
+    result = []
+    for r in rows:
+        item = dict(r)
+        if item.get("authors"):
+            try:
+                item["authors"] = json.loads(item["authors"])
+            except Exception:
+                pass
+        if item.get("tags"):
+            try:
+                item["tags"] = json.loads(item["tags"])
+            except Exception:
+                item["tags"] = []
+        result.append(item)
+    return JSONResponse(result)
+
+
+@router.delete("/api/bookmarks/{corpus_id}", status_code=204)
+def delete_bookmark(corpus_id: str) -> None:
+    with _db() as conn:
+        conn.execute("DELETE FROM bookmarks WHERE corpus_id = ?", (corpus_id,))
+
+
+@router.patch("/api/bookmarks/{corpus_id}")
+def patch_bookmark(corpus_id: str, req: BookmarkPatch) -> JSONResponse:
+    with _db() as conn:
+        if req.tags is not None:
+            conn.execute(
+                "UPDATE bookmarks SET tags = ? WHERE corpus_id = ?",
+                (json.dumps(req.tags), corpus_id),
+            )
+        if req.note is not None:
+            conn.execute(
+                "UPDATE bookmarks SET note = ? WHERE corpus_id = ?",
+                (req.note, corpus_id),
+            )
+        row = conn.execute(
+            "SELECT * FROM bookmarks WHERE corpus_id = ?", (corpus_id,)
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    item = dict(row)
+    if item.get("authors"):
+        try:
+            item["authors"] = json.loads(item["authors"])
+        except Exception:
+            pass
+    if item.get("tags"):
+        try:
+            item["tags"] = json.loads(item["tags"])
+        except Exception:
+            item["tags"] = []
+    return JSONResponse(item)
+
+
+# ── Note routes ───────────────────────────────────────────────────────────────
+
+@router.put("/api/notes/{corpus_id}")
+def upsert_note(corpus_id: str, req: NoteUpsert) -> JSONResponse:
+    with _db() as conn:
+        conn.execute(
+            """INSERT INTO paper_notes (corpus_id, note, updated_at) VALUES (?, ?, datetime('now'))
+               ON CONFLICT(corpus_id) DO UPDATE SET note = excluded.note, updated_at = datetime('now')""",
+            (corpus_id, req.note),
+        )
+    return JSONResponse({"ok": True})
+
+
+@router.get("/api/notes")
+def list_notes() -> JSONResponse:
+    with _db() as conn:
+        rows = conn.execute("SELECT corpus_id, note FROM paper_notes").fetchall()
+    return JSONResponse({r["corpus_id"]: r["note"] for r in rows})
+
+
+# ── Stats route ───────────────────────────────────────────────────────────────
+
+@router.get("/api/stats")
+def get_stats() -> JSONResponse:
+    with _db() as conn:
+        result_rows = conn.execute(
+            "SELECT result_json FROM searches WHERE result_json IS NOT NULL"
+        ).fetchall()
+        total_searches = conn.execute("SELECT COUNT(*) FROM searches").fetchone()[0]
+
+    tokens_by_model: dict[str, dict[str, int]] = {}
+    for row in result_rows:
+        try:
+            data = json.loads(row["result_json"])
+            breakdown = data.get("token_breakdown_by_model", {})
+            for model, usage in breakdown.items():
+                if model not in tokens_by_model:
+                    tokens_by_model[model] = {"total": 0, "prompt": 0, "completion": 0, "reasoning": 0}
+                tokens_by_model[model]["total"] += usage.get("total", 0)
+                tokens_by_model[model]["prompt"] += usage.get("prompt", 0)
+                tokens_by_model[model]["completion"] += usage.get("completion", 0)
+                tokens_by_model[model]["reasoning"] += usage.get("reasoning", 0)
+        except Exception:
+            pass
+
+    grand_total = sum(v["total"] for v in tokens_by_model.values())
+    return JSONResponse({
+        "total_searches": total_searches,
+        "tokens_by_model": tokens_by_model,
+        "grand_total_tokens": grand_total,
+    })
