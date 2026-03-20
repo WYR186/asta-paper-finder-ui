@@ -16,7 +16,6 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from mabool.api.history_routes import router as history_routes
 from mabool.api.round_v2_routes import router as rounds_v2_routes
 from mabool.data_model.config import cfg_schema
 from mabool.services.services_deps import services_module
@@ -50,7 +49,6 @@ def create_app(di_patched_instances: dict[str, Any] | None = None, **config_over
 
     # API v2 routes
     app.include_router(rounds_v2_routes)
-    app.include_router(history_routes)
 
     # Static UI
     app.mount("/ui", StaticFiles(directory=project_root() / "static", html=True), name="ui")

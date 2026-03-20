@@ -2,12 +2,11 @@
 
 > **Fork of [allenai/asta-paper-finder](https://github.com/allenai/asta-paper-finder)**
 > Based on https://github.com/allenai/asta-paper-finder
-> Added: session-based search history (SQLite), local web UI, deployment scripts.
+> Added: local web UI and deployment scripts.
 > See [LOCAL_DEPLOYMENT_NOTES.md](LOCAL_DEPLOYMENT_NOTES.md) for setup instructions.
 >
 > **Local modifications in this derivative work**
 > - `agents/mabool/api/mabool/api/app.py`
-> - `agents/mabool/api/mabool/api/history_routes.py`
 > - `agents/mabool/api/static/index.html`
 > - `agents/mabool/api/start.sh`
 
