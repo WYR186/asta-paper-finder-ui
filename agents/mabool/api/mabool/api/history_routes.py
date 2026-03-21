@@ -35,16 +35,17 @@ def _init_db(path: Path) -> None:
                 name       TEXT    NOT NULL
             );
             CREATE TABLE IF NOT EXISTS searches (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-                query      TEXT    NOT NULL,
-                mode       TEXT,
-                before_date TEXT,
-                anchor_ids  TEXT,
-                s2_session_id TEXT,
-                result_count  INTEGER,
-                result_json   TEXT
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id       INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+                query            TEXT    NOT NULL,
+                mode             TEXT,
+                before_date      TEXT,
+                anchor_ids       TEXT,
+                s2_session_id    TEXT,
+                result_count     INTEGER,
+                result_json      TEXT,
+                parent_search_id INTEGER REFERENCES searches(id) ON DELETE SET NULL
             );
             CREATE TABLE IF NOT EXISTS bookmarks (
                 corpus_id  TEXT PRIMARY KEY,
@@ -56,7 +57,8 @@ def _init_db(path: Path) -> None:
                 url        TEXT,
                 abstract   TEXT,
                 tags       TEXT DEFAULT '[]',
-                note       TEXT DEFAULT ''
+                note       TEXT DEFAULT '',
+                status     TEXT DEFAULT 'unread'
             );
             CREATE TABLE IF NOT EXISTS paper_notes (
                 corpus_id  TEXT PRIMARY KEY,
@@ -65,6 +67,22 @@ def _init_db(path: Path) -> None:
             );
         """)
         conn.commit()
+
+    # Migrate: add parent_search_id if it doesn't exist yet (existing DBs)
+    with sqlite3.connect(path) as conn:
+        try:
+            conn.execute("ALTER TABLE searches ADD COLUMN parent_search_id INTEGER REFERENCES searches(id) ON DELETE SET NULL")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+    # Migrate: add status column to bookmarks (existing DBs)
+    with sqlite3.connect(path) as conn:
+        try:
+            conn.execute("ALTER TABLE bookmarks ADD COLUMN status TEXT DEFAULT 'unread'")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
 
 
 @contextmanager
@@ -98,6 +116,7 @@ class SearchSave(BaseModel):
     s2_session_id: str | None = None
     result_count: int | None = None
     result_json: Any = None
+    parent_search_id: int | None = None
 
 
 # ── Session routes ────────────────────────────────────────────────────────────
@@ -152,8 +171,8 @@ def save_search(session_id: int, req: SearchSave) -> JSONResponse:
         cur = conn.execute(
             """INSERT INTO searches
                (session_id, query, mode, before_date, anchor_ids,
-                s2_session_id, result_count, result_json)
-               SELECT ?, ?, ?, ?, ?, ?, ?, ?
+                s2_session_id, result_count, result_json, parent_search_id)
+               SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
                WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ?)""",
             (
                 session_id,
@@ -164,6 +183,7 @@ def save_search(session_id: int, req: SearchSave) -> JSONResponse:
                 req.s2_session_id,
                 req.result_count,
                 json.dumps(req.result_json) if req.result_json is not None else None,
+                req.parent_search_id,
                 session_id,
             ),
         )
@@ -177,7 +197,7 @@ def list_searches(session_id: int) -> JSONResponse:
     with _db() as conn:
         rows = conn.execute(
             """SELECT id, created_at, query, mode, before_date, anchor_ids,
-                      s2_session_id, result_count, result_json
+                      s2_session_id, result_count, result_json, parent_search_id
                FROM searches WHERE session_id = ? ORDER BY id ASC""",
             (session_id,),
         ).fetchall()
@@ -193,6 +213,7 @@ def list_searches(session_id: int) -> JSONResponse:
             "s2_session_id": r["s2_session_id"],
             "result_count": r["result_count"],
             "result": json.loads(r["result_json"]) if r["result_json"] else None,
+            "parent_search_id": r["parent_search_id"],
         })
     return JSONResponse(items)
 
@@ -218,9 +239,12 @@ class BookmarkCreate(BaseModel):
     abstract: str | None = None
 
 
+_VALID_STATUSES = {"unread", "reading", "read", "to_review"}
+
 class BookmarkPatch(BaseModel):
     tags: list[str] | None = None
     note: str | None = None
+    status: str | None = None  # "unread" | "reading" | "read" | "to_review"
 
 
 class NoteUpsert(BaseModel):
@@ -298,6 +322,13 @@ def patch_bookmark(corpus_id: str, req: BookmarkPatch) -> JSONResponse:
                 "UPDATE bookmarks SET note = ? WHERE corpus_id = ?",
                 (req.note, corpus_id),
             )
+        if req.status is not None:
+            if req.status not in _VALID_STATUSES:
+                raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(_VALID_STATUSES)}")
+            conn.execute(
+                "UPDATE bookmarks SET status = ? WHERE corpus_id = ?",
+                (req.status, corpus_id),
+            )
         row = conn.execute(
             "SELECT * FROM bookmarks WHERE corpus_id = ?", (corpus_id,)
         ).fetchone()
@@ -335,6 +366,14 @@ def list_notes() -> JSONResponse:
     with _db() as conn:
         rows = conn.execute("SELECT corpus_id, note FROM paper_notes").fetchall()
     return JSONResponse({r["corpus_id"]: r["note"] for r in rows})
+
+
+# ── Qdrant index stats ────────────────────────────────────────────────────────
+
+@router.get("/api/qdrant/stats")
+def get_qdrant_stats() -> JSONResponse:
+    from mabool.agents.local_dense.qdrant_index import get_index_stats  # noqa: PLC0415
+    return JSONResponse(get_index_stats())
 
 
 # ── Stats route ───────────────────────────────────────────────────────────────

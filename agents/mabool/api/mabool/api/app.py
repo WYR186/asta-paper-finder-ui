@@ -16,7 +16,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from mabool.api.auth import is_auth_enabled, require_auth
 from mabool.api.history_routes import router as history_routes
+from mabool.api.review_routes import router as review_routes
 from mabool.api.round_v2_routes import router as rounds_v2_routes
 from mabool.api.stream_routes import router as stream_routes
 from mabool.data_model.config import cfg_schema
@@ -53,6 +55,7 @@ def create_app(di_patched_instances: dict[str, Any] | None = None, **config_over
     app.include_router(rounds_v2_routes)
     app.include_router(stream_routes)
     app.include_router(history_routes)
+    app.include_router(review_routes)
 
     # Static UI
     app.mount("/ui", StaticFiles(directory=project_root() / "static", html=True), name="ui")
@@ -77,12 +80,14 @@ def setup_basic_routes(app: FastAPI) -> None:
     def root() -> Response:
         return RedirectResponse("/docs")
 
-    # This tells the machinery that powers Skiff (Kubernetes) that your application
-    # is ready to receive traffic. Returning a non 200 response code will prevent the
-    # application from receiving live requests.
     @app.get("/health", status_code=204)
     def health() -> Response:
         return Response(status_code=204)
+
+    @app.get("/api/auth/check")
+    def auth_check() -> JSONResponse:
+        """Returns whether auth is enabled. Used by the frontend login flow."""
+        return JSONResponse({"auth_required": is_auth_enabled()})
 
 
 def setup_error_handlers(app: FastAPI, logger: logging.Logger) -> None:

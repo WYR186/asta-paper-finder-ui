@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from ai2i.common.utils.time import atiming
@@ -24,6 +25,7 @@ from mabool.agents.common.relevance_judgement_utils import (
 )
 from mabool.agents.common.utils import alog_args
 from mabool.agents.complex_search.definitions import BroadSearchInput, BroadSearchOutput
+from mabool.agents.local_dense.qdrant_index import index_documents, search_local_qdrant
 from mabool.agents.snowball.snippet_snowball import run_snippet_snowball
 from mabool.data_model.agent import AgentError, DomainsIdentified, RelevanceCriteria
 from mabool.data_model.config import cfg_schema
@@ -41,6 +43,19 @@ logger = logging.getLogger(__name__)
 type FastBroadSearchState = AgentState
 
 
+async def _dc_from_local_qdrant(
+    query: str,
+    top_k: int,
+    search_iteration: int,
+) -> DocumentCollection:
+    """Search local Qdrant and return a DocumentCollection (corpus-ids only, metadata fetched lazily)."""
+    hits = await search_local_qdrant(query, top_k=top_k)
+    if not hits:
+        return DC.empty()
+    corpus_ids = [cid for cid, _score in hits]
+    return DC.from_ids(corpus_ids)
+
+
 async def fast_broad_search(
     content_query: str,
     domains: DomainsIdentified,
@@ -56,7 +71,31 @@ async def fast_broad_search(
     doc_collection = await _rerank_docs(doc_collection, relevance_criteria, cohere_rerank)
     doc_collection = await _run_relevance_judgement(doc_collection, relevance_criteria)
 
+    # Background: index newly found papers into the local Qdrant store so
+    # future searches benefit from the growing local corpus.
+    asyncio.create_task(_background_index(doc_collection))
+
     return doc_collection
+
+
+async def _background_index(doc_collection: DocumentCollection) -> None:
+    """Fire-and-forget: embed and upsert papers into the local Qdrant index."""
+    try:
+        docs = [
+            {
+                "corpus_id": str(doc.corpus_id),
+                "title": doc.title or "",
+                "abstract": doc.abstract or "",
+                "year": doc.year,
+                "venue": doc.venue or "",
+            }
+            for doc in doc_collection.documents
+            if doc.corpus_id and (doc.title or doc.abstract)
+        ]
+        if docs:
+            await index_documents(docs)
+    except Exception as exc:
+        logger.debug("Background Qdrant indexing failed: %s", exc)
 
 
 @DI.managed
@@ -99,7 +138,13 @@ async def _run_initial_retrieval(
             venues=venues,
             time_range=time_range,
             fields_of_study=fields_of_study,
-        )
+        ),
+        # Local Qdrant semantic search (no-op if not installed or index is empty)
+        _dc_from_local_qdrant(
+            content_query,
+            top_k=config_value(cfg_schema.fast_broad_search_agent.dense_top_k),
+            search_iteration=1,
+        ),
     ]
     doc_collections_or_errors = await custom_gather(*retrieval_futures, return_exceptions=True)
     for dc_or_e in doc_collections_or_errors:
