@@ -93,3 +93,7 @@ server.log*
 
 # Local search history database (runtime generated)
 search_history.db
+
+# Word temp files
+~$*.docx
+*.tmp
